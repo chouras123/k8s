@@ -1,0 +1,460 @@
+https://rancher.com/docs/rancher/v1.5/en/kubernetes/storage/#static-provisioning # Volumes
+https://kubernetes.github.io/ingress-nginx/deploy/ # nginx ingress controller 
+https://kubernetes.io/docs/concepts/services-networking/ingress/ #Example
+https://www.cncf.io/blog/2018/08/01/demystifying-rbac-in-kubernetes/
+https://stackify.com/canary-deployments/
+https://learnk8s.io/kubernetes-rollbacks
+https://kubernetes.io/docs/concepts/services-networking/connect-applications-service/
+https://docs.bitnami.com/bch/infrastructure/kubernetes-sandbox/configuration/add-users/
+Installation on Master & Worker:
+------------------------------
+sudo apt-get update && sudo apt-get install -y apt-transport-https curl
+curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
+cat <<EOF | sudo tee /etc/apt/sources.list.d/kubernetes.list
+deb https://apt.kubernetes.io/ kubernetes-xenial main
+EOF
+sudo apt-get update
+sudo apt-get install -y kubelet kubeadm kubectl
+sudo apt-mark hold kubelet kubeadm kubectl
+
+sudo apt-get remove docker docker-engine docker.io
+sudo apt install docker.io
+systemctl start docker
+systemctl enable docker
+
+HA PROXY CONFIGURATION ON KUBERNETES
+-----------------------------------------
+UNDER GLOBAL SECTIO ADD BELOW CONTENT:
+------------------------------------------
+ frontend kubernetes
+        bind 172.31.33.57:6443
+        option tcplog
+        mode tcp
+        default_backend kubernetes-master-nodes
+
+
+        backend kubernetes-master-nodes
+        mode tcp
+        balance roundrobin
+        option tcp-check
+        server k8s-master-1 172.31.44.203:6443 check fall 3 rise 2
+
+
+
+
+-----------------------------------------
+
+################################################
+ONLY MASTER:
+---------------
+kubeadm init --pod-network-cidr=192.168.0.0/16  --apiserver-advertise-address=172.31.36.79 
+kubectl apply -f https://docs.projectcalico.org/v3.8/manifests/calico.yaml
+####################################################################3
+create a new user
+###################################
+openssl genrsa -out rabi.key 2048
+   35  ls
+   36  openssl req -new -key rabi.key -out rabi.csr -subj "/CN=rabi/O=test"
+   37  ls
+   38  top
+   39  ls
+   40  openssl x509 -req -in rabi.csr -CA /etc/kubernetes/pki/ca.crt -CAkey /etc/kubernetes/pki/ca.key -CAcreateserial -out rabi.crt -days 365
+    43  mkdir /home/rabi/certs
+   44  ls
+   45  cp rabi.crt rabi.key /home/rabi/certs/
+   46  ls
+   47  kubectl config set-credentials rabi --client-certificate=/home/rabi/certs/rabi.crt  --client-key=/home/rabi/certs/rabi.key 
+   48  cd 
+   49  cd .kube/
+   50  vi config 
+   51  kubectl config set-context rabi-context --cluster=kubernetes --namespace=default --user=rabi
+   52  top
+   53  ls
+   54  vi config 
+   55  kubectl --context=rabi-context get pods
+   56  mkdir /home/rabi/.kube
+   57  cp config /home/rabi/.kube/
+   58  cd 
+   59  su - rabi
+   60  chown -R rabi:rabi /home/rabi/
+   61  chown -Rv rabi:rabi /home/rabi/
+
+CONFIG
+====================
+apiVersion: v1
+clusters:
+- cluster:
+    certificate-authority-data: ""
+    server: https://172.31.82.76:6443
+  name: kubernetes
+contexts:
+- context:
+    cluster: kubernetes
+    namespace: default
+    user: rabi
+  name: rabi-context
+current-context: rabi-context
+kind: Config
+preferences: {}
+users:
+- name: rabi
+  user:
+    client-certificate: /home/rabi/certs/rabi.crt
+    client-key: /home/rabi/certs/rabi.key
+ 
+
+
+
+Only WORKER:
+------------------
+
+TESTING:
+-------------------
+kubectl get pods --all-namespaces
+     cd
+     kubectl get nodes
+     history
+     cd
+     kubectl get namespaces
+     kubectl create deployment nginx --image=nginx
+     kubectl get deployments
+     kubectl describe deployment nginx
+     kubectl create service nodeport nginx --tcp=80:80
+     kubectl get svc
+TUTORIAL:
+---------------
+vi client-pod.yml
+apiVersion: v1
+kind: Pod
+metadata:
+        name: clinet-pod
+        labels:
+                componenet: web
+spec:
+        containers:
+                - name: clinet
+                  image: nginx
+                  ports:
+                          - containerPort: 80
+vi client-node-pod.yml
+apiVersion: v1
+kind: Service
+metadata:
+        name: clinet-node-port
+spec:
+        type: NodePort
+        ports:
+         - port: 3050
+           targetPort: 80
+           nodePort: 31515
+        selector:
+                componenet: web
+#######################################
+ kubectl delete deployments nginx
+  kubectl get deployments
+   84  kubectl get svc
+   85  kubectl delete deployments nginx
+   86  kubectl get deployments
+   87  kubectl delete service nginx
+   88  kubectl get deployments
+   89  kubectl get svc
+   90  kubectl delete service clinet-node-port
+   91  kubectl get svc
+   92  ls
+   93  vi client-node-port.yml
+   94  kubectl apply -f client-pod.yml
+   95  kubectl get deployments
+   96  kubectl get pods --all-namespaces
+   97  kubectl delete pod clinet-pod
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+https://kubernetestutorials.com/install-and-deploy-kubernetes-on-centos-7/
+https://stackoverflow.com/questions/52140852/kubeadm-join-fails-with-http-localhost10248-healthz-connection-refused(Trouble Shooting Guide)
+https://developer.ibm.com/tutorials/scalable-python-app-with-kubernetes/
+25  vi /etc/hosts
+  126  vi /etc/sysconfig/selinux
+  127  swapoff -a
+  128  reboot
+  129  ls
+  130  modprobe br_netfilter
+  131  echo '1' > /proc/sys/net/bridge/bridge-nf-call-iptables
+  132  ls
+  133  vi /etc/fstab
+  134  mount -a
+  135  df -Th
+  136  ls
+  137  sl
+  138  ls
+  139  echo '1' > /proc/sys/net/bridge/bridge-nf-call-iptables
+  140  cd /etc/yum.repos.d/
+  141  ls
+  142  cd
+  143  yum install -y yum-utils device-mapper-persistent-data lvm2
+  144  yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+  145  yum install -y docker-ce
+  146  systemctl start docker
+  147  vi /etc/yum.repos.d/kubernetes.repo
+  148  yum install -y kubelet kubeadm kubectl
+  149  ystemctl enable kubelet.service
+  150  systemctl enable kubelet.service
+  151  systemctl start kubelet.service
+  152  systemctl status kubelet.service
+  153  kubeadm status
+  154  kubeadm --help
+  155  systemctl stop kubelet.service
+  156  kubeadm init  --pod-network-cidr=192.168.56.0/24 --apiserver-advertise-address=192.168.56.30
+  157  systemctl stop firewalld
+  158  kubeadm init  --pod-network-cidr=192.168.56.0/24 --apiserver-advertise-address=192.168.56.30
+  159  systemctl enable docker
+  160  kubeadm init  --pod-network-cidr=192.168.56.0/24 --apiserver-advertise-address=192.168.56.30
+  161  systemctl restart network
+  162  ping google
+  163  systemctl restart network
+  164  ping google.com
+  165  ip a s
+  166  hostnamectl set-hostname master.epam.com
+  167  reboot
+  168  kubeadm init  --pod-network-cidr=192.168.56.0/24 --apiserver-advertise-address=192.168.56.30
+  169  systemctl stop firewalld
+  170  kubeadm init  --pod-network-cidr=192.168.56.0/24 --apiserver-advertise-address=192.168.56.30
+  171  vi /proc/sys/net/ipv4/ip_forward
+  172  systemctl status docker
+  173  kubeadm init  --pod-network-cidr=192.168.56.0/24 --apiserver-advertise-address=192.168.56.30
+  174  docker -version
+  175  docker --version
+  176  kubeadm init  --pod-network-cidr=192.168.56.0/24 --apiserver-advertise-address=192.168.56.30
+  177  yum remove docker -y
+  178  rpm -qa docker
+  179  rpm -q docker
+  180  yum install docker-18.09
+  181  kubeadm init  --pod-network-cidr=192.168.56.0/24 --apiserver-advertise-address=192.168.56.30
+  182  vi /proc/sys/net/bridge/bridge-nf-call-iptables
+  183  eecho '1' /proc/sys/net/bridge/bridge-nf-call-iptables
+  184  echo '1' /proc/sys/net/bridge/bridge-nf-call-iptables
+  185  echo "1" > /proc/sys/net/ipv4/ip_forward
+  186  kubeadm init  --pod-network-cidr=192.168.56.0/24 --apiserver-advertise-address=192.168.56.30
+  187  cat /proc/sys/net/bridge/bridge-nf-call-iptables
+  188  echo "1" /proc/sys/net/bridge/bridge-nf-call-iptables
+  189  echo "1"  > /proc/sys/net/bridge/bridge-nf-call-iptables
+  190  kubeadm init  --pod-network-cidr=192.168.56.0/24 --apiserver-advertise-address=192.168.56.30
+  191  history
+
+	mkdir -p $HOME/.kube
+	sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+	sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+kubectl apply -f \
+https://docs.projectcalico.org/v3.4/getting-started/kubernetes/installation/hosted/etcd.yaml
+
+kubectl apply -f \
+https://docs.projectcalico.org/v3.4/getting-started/kubernetes/installation/hosted/calico.yaml
+
+watch kubectl get pods --all-namespaces
+
+kubectl get nodes
+###########################################################################################################
+mkdir -p /opt/docker/containers/docker-registry/certs
+openssl req -nodes -sha256  -x509 -days 365  -keyout /opt/docker/containers/docker-registry/certs/docker-registry.key  -out /opt/docker/containers/docker-registry/certs/docker-registry.crt
+
+mkdir -p /opt/docker/containers/docker-registry/auth
+docker run --entrypoint htpasswd  registry -Bbn pramod pramod@123 > /opt/docker/containers/docker-registry/auth/htpasswd
+mkdir /opt/docker/containers/docker-registry/registry
+docker pull registry
+docker run -d  --name docker-registry  --restart=always  -p 5000:5000  -v /opt/docker/containers/docker-registry/registry:/var/lib/registry  -v /opt/docker/containers/docker-registry/auth:/auth  -e "REGISTRY_AUTH=htpasswd"  -e "REGISTRY_AUTH_HTPASSWD_REALM=Registry Realm"  -e REGISTRY_AUTH_HTPASSWD_PATH=/auth/htpasswd  -v /opt/docker/containers/docker-registry/certs:/certs  -e REGISTRY_HTTP_TLS_CERTIFICATE=/certs/docker-registry.crt  -e REGISTRY_HTTP_TLS_KEY=/certs/docker-registry.key  registry
+
+OUTPUT: b33e64d37357818b4da1299ad65db9f7bde0a13df67ee7d3899c2486b9a2f2b5
+
+cat >> /etc/hosts << EOF
+> 172.17.0.2 docker-registry.example.com docker-registry
+> EOF
+
+
+mkdir -p /etc/docker/certs.d/server2.epam.com:5000
+
+cp /opt/docker/containers/docker-registry/certs/docker-registry.crt /etc/docker/certs
+
+docker pull busybox
+
+docker tag busybox:latest server2.epam.com:5000/busybox
+
+
+
+cp /opt/docker/containers/docker-registry/certs/docker-registry.crt /etc/docker/certs.d/docker-registry.example.com:5000/ca.crt
+Pull an image from Docker Hub. We will later push this image to our Private Docker Registry.
+
+
+######################################################################################################################################
+
+
+
+ 153  rm -f /etc/docker/certs.d/docker-registry.example.com:5000
+  154  rm -rf /etc/docker/certs.d/docker-registry.example.com:5000
+  155  mkdir -p /etc/docker/certs.d/server2.epam.com:5000
+  156  docker tag busybox:latest server2.epam.com:5000/busybox
+  157  docker images
+  158  docker login server2.epam.com:5000
+  159  ls
+  160  docker ps
+  161  docker run -d  --name docker-registry  --restart=always  -p 5000:5000  -v /opt/docker/containers/docker-registry/registry:/var/lib/registry  -v /opt/docker/containers/docker-registry/auth:/auth  -e "REGISTRY_AUTH=htpasswd"  -e "REGISTRY_AUTH_HTPASSWD_REALM=Registry Realm"  -e REGISTRY_AUTH_HTPASSWD_PATH=/auth/htpasswd  -v /opt/docker/containers/docker-registry/certs:/certs  -e REGISTRY_HTTP_TLS_CERTIFICATE=/certs/docker-registry.crt  -e REGISTRY_HTTP_TLS_KEY=/certs/docker-registry.key  registry
+  162  docker ps
+  163  docker login server2.epam.com:5000
+  164  ls
+  165  rm -rf *
+  166  ls
+  167  docker ps
+  168  docker kill 5ce22167ecc5
+  169  docker container prune
+  170  docker images
+  171  docker rmi -f $(docker rmi -q)
+  172  docker rmi -f $(docker rmi -p)
+  173  docker rmi -f $(docker images -q)
+  174  docker images
+  175  openssl req -nodes -sha256  -x509 -days 365  -keyout /opt/docker/containers/docker-registry/certs/docker_registry.key  -out /opt/docker/containers/docker-registry/certs/docker_registry.crt
+  176  ls
+  177  docker run --entrypoint htpasswd  registry -Bbn pramod pramod@123 > /opt/docker/containers/docker-registry/auth/htpasswd
+  178  docker pull registry
+  179  docker run -d  --name docker-registry  --restart=always  -p 5000:5000  -v /opt/docker/containers/docker-registry/registry:/var/lib/registry  -v /opt/docker/containers/docker-registry/auth:/auth  -e "REGISTRY_AUTH=htpasswd"  -e "REGISTRY_AUTH_HTPASSWD_REALM=Registry Realm"  -e REGISTRY_AUTH_HTPASSWD_PATH=/auth/htpasswd  -v /opt/docker/containers/docker-registry/certs:/certs  -e REGISTRY_HTTP_TLS_CERTIFICATE=/certs/docker-registry.crt  -e REGISTRY_HTTP_TLS_KEY=/certs/docker-registry.key  registry
+  180  cp /opt/docker/containers/docker-registry/certs/docker-registry.crt /etc/docker/certs
+  181  ls
+  182  mv docker_registry.crt docker-registry.crt
+  183  mv docker_registry.key docker-registry.key
+  184  cp /opt/docker/containers/docker-registry/certs/docker-registry.crt /etc/docker/certs
+  185  docker pull busybox
+  186  ls
+  187  docker tag busybox:latest server2.epam.com:5000/busybox
+  188  docker login docker-registry.example.com:5000
+  189  docker ps
+  190  docker login server2.epam.com:5000
+  191  ls
+  192  rm -rf *
+  193  ls
+  194  openssl req -nodes -sha256  -x509 -days 365  -keyout /opt/docker/containers/docker-registry/certs/docker-registry.key  -out /opt/docker/containers/docker-registry/certs/docker-registry.crt
+  195  ls
+  196  cp /opt/docker/containers/docker-registry/certs/docker-registry.crt /etc/docker/certs
+  197  docker ps
+  198  docker kill 0d9df472718d
+  199  docker container prune
+  200  docker rmi -f $(docker images -q)
+  201  ls
+  202  vi /etc/hosts
+  203  docker run -d  --name docker-registry  --restart=always  -p 5000:5000  -v /opt/docker/containers/docker-registry/registry:/var/lib/registry  -v /opt/docker/containers/docker-registry/auth:/auth  -e "REGISTRY_AUTH=htpasswd"  -e "REGISTRY_AUTH_HTPASSWD_REALM=Registry Realm"  -e REGISTRY_AUTH_HTPASSWD_PATH=/auth/htpasswd  -v /opt/docker/containers/docker-registry/certs:/certs  -e REGISTRY_HTTP_TLS_CERTIFICATE=/certs/docker-registry.crt  -e REGISTRY_HTTP_TLS_KEY=/certs/docker-registry.key  registry
+  204  docker tag busybox:latest server2.epam.com:5000/busybox
+  205  docker pull busybox
+  206  docker tag busybox:latest server2.epam.com:5000/busybox
+  207  docker login docker-registry.example.com:5000
+  208  docker login server2.epam.com:5000
+  209  find / -name daemon.jso
+  210  find / -name daemon.json
+  211  systemctl status docker
+  212  ls
+  213  l
+  214  ls
+  215  rm -rf *
+  216  ls
+  217  openssl req -nodes -sha256  -x509 -days 365  -keyout /opt/docker/containers/docker-registry/certs/docker-registry.key  -out /opt/docker/containers/docker-registry/certs/docker-registry.crt
+  218  ls
+  219  vi /etc/hosts
+  220  mkdir -p /etc/docker/certs.d/docker-registry.example.com:5000
+  221  cp /opt/docker/containers/docker-registry/certs/docker-registry.crt /etc/docker/certs.d/docker-registry.example.com:5000/ca.crt
+  222  docker run --entrypoint htpasswd  registry -Bbn pramod pramod@123 > /opt/docker/containers/docker-registry/auth/htpasswd
+  223  mkdir /opt/docker/containers/docker-registry/registry
+  224  docker pull registry
+  225  docker run -d  --name docker-registry  --restart=always  -p 5000:5000  -v /opt/docker/containers/docker-registry/registry:/var/lib/registry  -v /opt/docker/containers/docker-registry/auth:/auth  -e "REGISTRY_AUTH=htpasswd"  -e "REGISTRY_AUTH_HTPASSWD_REALM=Registry Realm"  -e REGISTRY_AUTH_HTPASSWD_PATH=/auth/htpasswd  -v /opt/docker/containers/docker-registry/certs:/certs  -e REGISTRY_HTTP_TLS_CERTIFICATE=/certs/docker-registry.crt  -e REGISTRY_HTTP_TLS_KEY=/certs/docker-registry.key  registry
+  226  docker ps
+  227  docker kill 8355362cc252
+  228  docker ps
+  229  docker container prune
+  230  docker run -d  --name docker-registry  --restart=always  -p 5000:5000  -v /opt/docker/containers/docker-registry/registry:/var/lib/registry  -v /opt/docker/containers/docker-registry/auth:/auth  -e "REGISTRY_AUTH=htpasswd"  -e "REGISTRY_AUTH_HTPASSWD_REALM=Registry Realm"  -e REGISTRY_AUTH_HTPASSWD_PATH=/auth/htpasswd  -v /opt/docker/containers/docker-registry/certs:/certs  -e REGISTRY_HTTP_TLS_CERTIFICATE=/certs/docker-registry.crt  -e REGISTRY_HTTP_TLS_KEY=/certs/docker-registry.key  registry
+  231  ls
+  232  mkdir -p /etc/docker/certs.d/docker-registry.example.com:5000
+  233  cp /opt/docker/containers/docker-registry/certs/docker-registry.crt /etc/docker/certs.d/docker-registry.example.com:5000/ca.crt
+  234  docker pull busybox
+  235  docker tag busybox:latest docker-registry.example.com:5000/busybox
+  236  docker login docker-registry.example.com:5000
+  237  ls
+  238  firewall-cmd --list-all
+  239  systemctl stop firewalld
+  240  ls
+  241  cd
+  242  ls
+  243  docker ps
+  244  ls
+  245  docker images
+  246  ls
+  247  history
+######################################################################################################################################################################
+MINIKUBE INSTALLATION ON AWS
+------------------------------------
+amazon-linux-extras install epel
+yum install docker -y
+KUBE_VERSION=$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)
+curl -Lo kubectl https://storage.googleapis.com/kubernetes-release/release/${KUBE_VERSION}/bin/linux/amd64/kubectl
+chmod +x kubectl
+ mv -f kubectl /usr/sbin/
+ curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+ install minikube-linux-amd64 /usr/sbin/minikube
+ minikube start --vm-driver=none
+ 
+#####################################################################################################
+MINIKUBE SETUP
+###################################################################################################
+ yum install qemu-kvm qemu-img virt-manager libvirt libvirt-python libvirt-client virt-install virt-viewer bridge-utils
+   15  grep -E --color 'vmx|svm' /proc/cpuinfo
+   16  grep -E --color 'vmx|svm' /proc/cpuinfo
+   17  grep -E --color 'vmx|svm' /proc/cpuinfo
+   18   systemctl start libvirtd
+   19   lsmod | grep kvm lsmod | grep kvm
+   20   lsmod | grep kvm
+   21  lsmod
+   22  yum install "@X Window System" xorg-x11-xauth xorg-x11-fonts-* xorg-x11-utils -y
+   23  virt-manager
+   24  ps
+   25  curl -Lo minikube https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64   && chmod +x minikube
+   26  mkdir -p /usr/local/bin/
+   27  install minikube /usr/local/bin/
+   28  brew install minikube
+   29  minikube start
+   30  ls
+   31  ./minikube start
+   32  ./minikube start --vm-driver=kvm
+   33  ./minikube start --vm-driver=none
+   34  yum install docker -y
+   35  ./minikube start --vm-driver=none
+   36  mv /root/.kube /root/.minikube $HOME
+   37  mv /root/.kube /root/.minikube $HOME
+   38  chown -R $USER $HOME/.kube $HOME/.minikube
+   39  kubectl create deployment hello-minikube --image=k8s.gcr.io/echoserver:1.10
+   40  ls
+   41  ls
+   42  ls
+   43  ls -a
+   44  find / -name kubectl
+   45  /var/lib/docker/overlay2/afe85c4bdd2996c4f2008a984393f910b9cc1ecf2c2b9524f8c61241086aef2b/diff/usr/local/bin/kubectl
+   46  /var/lib/docker/overlay2/afe85c4bdd2996c4f2008a984393f910b9cc1ecf2c2b9524f8c61241086aef2b/diff/usr/local/bin/kubectl get nodes
+   47  ./minikube ip
+   48  ip a s
+   49  hostname -i
+   50  ./minikube ip
+   51  /var/lib/docker/overlay2/afe85c4bdd2996c4f2008a984393f910b9cc1ecf2c2b9524f8c61241086aef2b/diff/usr/local/bin/kubectl create deployment hello-minikube --image=k8s.gcr.io/echoserver:1.10
+   52  /var/lib/docker/overlay2/afe85c4bdd2996c4f2008a984393f910b9cc1ecf2c2b9524f8c61241086aef2b/diff/usr/local/bin/kubectl expose deployment hello-minikube --type=NodePort --port=8080
+   53  kubectl get pod
+   54  /var/lib/docker/overlay2/afe85c4bdd2996c4f2008a984393f910b9cc1ecf2c2b9524f8c61241086aef2b/diff/usr/local/bin/kubectl  get pod
+   55  /var/lib/docker/overlay2/afe85c4bdd2996c4f2008a984393f910b9cc1ecf2c2b9524f8c61241086aef2b/diff/usr/local/bin/kubectl  service hello-minikube --url
+   56  /var/lib/docker/overlay2/afe85c4bdd2996c4f2008a984393f910b9cc1ecf2c2b9524f8c61241086aef2b/diff/usr/local/bin/kubectl  get svc
+
